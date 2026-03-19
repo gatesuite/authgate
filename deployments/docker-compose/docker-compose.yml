@@ -1,0 +1,34 @@
+services:
+  authgate:
+    build: ../../
+    ports:
+      - "8000:8000"
+    env_file:
+      - ../../.env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://authgate:authgate@postgres:5432/authgate
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - authgate-keys:/app/keys
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: authgate
+      POSTGRES_PASSWORD: authgate
+      POSTGRES_DB: authgate
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U authgate"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  authgate-keys:

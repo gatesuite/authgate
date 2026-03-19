@@ -1,0 +1,95 @@
+replicaCount: 1
+
+image:
+  repository: ghcr.io/farhaan/authgate
+  # Chart published to: oci://ghcr.io/farhaan/charts/authgate
+  tag: latest
+  pullPolicy: IfNotPresent
+
+branding:
+  appName: AuthGate
+  appLogoUrl: ""
+  appTagline: "Secure authentication for your apps"
+  accentColor: "#6366f1"
+
+server:
+  allowedRedirects: "https://app.example.com/*"
+  corsOrigins: "https://app.example.com"
+
+# -- OAuth providers to enable. Only listed providers appear on the login page.
+# The existingSecret MUST contain CLIENT_ID and CLIENT_SECRET for each enabled provider.
+providers:
+  - name: github
+    enabled: true
+  - name: google
+    enabled: false
+  - name: gitlab
+    enabled: false
+    baseUrl: "https://gitlab.com"
+
+# -- Name of an existing K8s Secret containing all sensitive env vars.
+# Required keys: SECRET_KEY, DATABASE_URL
+# Per enabled provider: <PROVIDER>_CLIENT_ID, <PROVIDER>_CLIENT_SECRET
+# Example for github: GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET
+existingSecret: ""
+
+jwt:
+  expiryHours: 24
+  cookieName: authgate_token
+  cookieDomain: ""
+  cookieSecure: true
+
+service:
+  type: ClusterIP
+  port: 8000
+
+ingress:
+  enabled: false
+  className: nginx
+  host: auth.example.com
+  annotations: {}
+  tls: false
+  tlsSecretName: ""
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+
+persistence:
+  enabled: true
+  size: 1Gi
+  storageClass: ""
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+topologySpreadConstraints:
+  enabled: true
+  maxSkew: 1
+  topologyKey: kubernetes.io/hostname
+  whenUnsatisfiable: DoNotSchedule

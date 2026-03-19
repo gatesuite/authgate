@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "authgate.fullname" . }}
+  labels:
+    {{- include "authgate.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: 8000
+      protocol: TCP
+  selector:
+    {{- include "authgate.selectorLabels" . | nindent 4 }}

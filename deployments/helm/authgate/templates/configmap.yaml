@@ -1,0 +1,30 @@
+{{- $enabled := list }}
+{{- range .Values.providers }}
+{{- if .enabled }}
+{{- $enabled = append $enabled .name }}
+{{- end }}
+{{- end }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "authgate.fullname" . }}
+  labels:
+    {{- include "authgate.labels" . | nindent 4 }}
+data:
+  APP_NAME: {{ .Values.branding.appName | quote }}
+  APP_LOGO_URL: {{ .Values.branding.appLogoUrl | quote }}
+  APP_TAGLINE: {{ .Values.branding.appTagline | quote }}
+  ACCENT_COLOR: {{ .Values.branding.accentColor | quote }}
+  ALLOWED_REDIRECTS: {{ .Values.server.allowedRedirects | quote }}
+  CORS_ORIGINS: {{ .Values.server.corsOrigins | quote }}
+  ENABLED_PROVIDERS: {{ join "," $enabled | quote }}
+  JWT_EXPIRY_HOURS: {{ .Values.jwt.expiryHours | quote }}
+  JWT_KEYS_DIR: "/app/keys"
+  COOKIE_NAME: {{ .Values.jwt.cookieName | quote }}
+  COOKIE_DOMAIN: {{ .Values.jwt.cookieDomain | quote }}
+  COOKIE_SECURE: {{ .Values.jwt.cookieSecure | quote }}
+  {{- range .Values.providers }}
+  {{- if and .enabled (eq .name "gitlab") .baseUrl }}
+  GITLAB_BASE_URL: {{ .baseUrl | quote }}
+  {{- end }}
+  {{- end }}
