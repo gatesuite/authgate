@@ -292,6 +292,91 @@ helm install authgate ./deployments/helm/authgate -f my-values.yaml
 
 ---
 
+## Architecture
+
+### Kubernetes Deployment
+
+```mermaid
+graph TB
+    User["🌐 User Browser"]
+
+    subgraph Internet
+        ALB["AWS ALB / Ingress Controller"]
+    end
+
+    subgraph EKS Cluster
+        subgraph Public["Public (Ingress Rules)"]
+            AG_Ingress["Ingress: auth.example.com"]
+            App_Ingress["Ingress: app.example.com"]
+        end
+
+        subgraph Private["Private (ClusterIP Services)"]
+            AG["AuthGate<br/>ClusterIP :8000"]
+            App["App Backend<br/>ClusterIP :3000"]
+            PG["PostgreSQL<br/>ClusterIP :5432"]
+        end
+    end
+
+    subgraph OAuth Providers
+        GH["GitHub"]
+        GO["Google"]
+        GL["GitLab"]
+    end
+
+    User -->|"HTTPS"| ALB
+    ALB --> AG_Ingress
+    ALB --> App_Ingress
+    AG_Ingress --> AG
+    App_Ingress --> App
+    AG -->|"Async"| PG
+    AG <-->|"OAuth 2.0"| GH
+    AG <-->|"OAuth 2.0"| GO
+    AG <-->|"OAuth 2.0"| GL
+    App -.->|"GET /.well-known/jwks.json<br/>(verify JWT locally)"| AG
+
+    style AG fill:#10b981,stroke:#047857,color:#fff
+    style App fill:#3b82f6,stroke:#1d4ed8,color:#fff
+    style PG fill:#6366f1,stroke:#4338ca,color:#fff
+    style ALB fill:#f59e0b,stroke:#d97706,color:#fff
+```
+
+### Authentication Flow
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant App as Your App (app.example.com)
+    participant AG as AuthGate (auth.example.com)
+    participant OAuth as OAuth Provider
+    participant DB as PostgreSQL
+
+    User->>App: Visit app.example.com
+    App->>App: Check for JWT cookie/header
+    alt No valid JWT
+        App-->>User: Redirect to auth.example.com/login?redirect_url=app.example.com
+        User->>AG: GET /login
+        AG-->>User: Render branded login page
+        User->>AG: Click "Continue with GitHub"
+        AG->>OAuth: Redirect to provider authorize URL
+        OAuth-->>User: Show consent screen
+        User->>OAuth: Approve
+        OAuth->>AG: Callback with auth code
+        AG->>OAuth: Exchange code for access token
+        OAuth-->>AG: Return access token
+        AG->>OAuth: Fetch user profile (name, email, avatar)
+        OAuth-->>AG: Return profile
+        AG->>DB: Create or update user record
+        DB-->>AG: Confirm
+        AG->>AG: Generate JWT (RS256)
+        AG-->>User: Set HttpOnly cookie + redirect to app.example.com?token=xxx
+    end
+    User->>App: Request with JWT
+    App->>App: Verify JWT using JWKS public key
+    App-->>User: Serve authenticated content
+```
+
+---
+
 ## Project Structure
 
 ```
