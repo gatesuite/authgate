@@ -8,7 +8,7 @@ from sqlalchemy import select
 from app.config import settings
 from app.database import async_session
 from app.jwt_handler import jwt_handler
-from app.models import User
+from app.models import User, UserProvider
 from app.oauth import get_enabled_providers
 
 router = APIRouter()
@@ -111,22 +111,39 @@ async def _handle_callback(request: Request, provider: str):
             user.last_login_at = datetime.now(timezone.utc)
             user.name = oauth_user.name or user.name
             user.avatar_url = oauth_user.avatar_url or user.avatar_url
-            user.provider = provider
-            user.provider_id = oauth_user.id
         else:
             user = User(
                 email=oauth_user.email,
                 name=oauth_user.name,
                 avatar_url=oauth_user.avatar_url,
-                provider=provider,
-                provider_id=oauth_user.id,
             )
             session.add(user)
+            await session.flush()
+
+        existing_link = await session.execute(
+            select(UserProvider).where(
+                UserProvider.user_id == user.id,
+                UserProvider.provider == provider,
+            )
+        )
+        link = existing_link.scalar_one_or_none()
+
+        if link:
+            link.provider_id = oauth_user.id
+            link.linked_at = datetime.now(timezone.utc)
+        else:
+            session.add(
+                UserProvider(
+                    user_id=user.id,
+                    provider=provider,
+                    provider_id=oauth_user.id,
+                )
+            )
 
         await session.commit()
         await session.refresh(user)
 
-    token = jwt_handler.create_token(user.id, user.email, user.name, user.provider)
+    token = jwt_handler.create_token(user.id, user.email, user.name, provider)
 
     if redirect_url:
         separator = "&" if "?" in redirect_url else "?"

@@ -105,11 +105,10 @@ async def login_page(request: Request):
     )
 
 
-@app.post("/logout")
-async def logout():
-    from fastapi.responses import JSONResponse
-
-    response = JSONResponse({"status": "logged_out"})
+@app.get("/logout")
+async def logout(request: Request):
+    redirect_url = request.query_params.get("redirect_url", "/login")
+    response = RedirectResponse(redirect_url)
     response.delete_cookie(
         settings.COOKIE_NAME, domain=settings.COOKIE_DOMAIN or None
     )
