@@ -6,6 +6,10 @@
 
 [View Architecture Diagram (Interactive Excalidraw)](https://excalidraw.com/#json=Ee47uy93aF8xsMq7hHLBo,8Gao_ALPryGDB89yh0RcdA)
 
+<p align="center">
+  <img src="./excalidraw/architecture.svg" alt="AuthGate Architecture" />
+</p>
+
 ---
 
 ## Why AuthGate?
