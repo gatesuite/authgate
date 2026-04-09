@@ -1,0 +1,96 @@
+# ============================================================================
+# AuthGate Configuration
+# ============================================================================
+#
+# Copy this file to authgate.yaml and edit as needed.
+# Alternatively, set AUTHGATE_CONFIG=/path/to/config.yaml to load from
+# a custom location.
+#
+# Secret values use $VAR syntax to read from environment variables at
+# startup. Keep secrets in environment variables (or Kubernetes Secrets)
+# and reference them here — never commit plaintext secrets.
+#
+# If no YAML config file is found, AuthGate falls back to reading all
+# settings from environment variables (backward compatible).
+# ============================================================================
+
+# ---------------------------------------------------------------------------
+# Branding & appearance
+# ---------------------------------------------------------------------------
+app:
+  name: PDFIvy                                     # Displayed on the login page
+  logoUrl: ""                                      # URL to an external logo image
+  logoPath: ""                                     # Local file path; served at /static/logo if set
+  tagline: Secure authentication for your apps     # Subtitle on the login page
+  accentColor: "#6366f1"                           # Primary accent color (hex)
+  defaultTheme: light                              # light | dark | auto (system preference)
+  customLoginTemplate: ""                          # Path to a custom Jinja2 login template
+
+# ---------------------------------------------------------------------------
+# Server
+# ---------------------------------------------------------------------------
+server:
+  host: 0.0.0.0
+  port: 8000
+  baseUrl: ""                     # Public URL (e.g. https://auth.example.com).
+                                  # When empty, auto-detected from the request.
+  secretKey: $SECRET_KEY          # Used for signing state tokens. MUST change in production.
+
+  # Glob patterns for valid post-login redirect URLs
+  allowedRedirects:
+    - http://localhost:3000/*
+
+  # Origins allowed by CORS
+  corsOrigins:
+    - http://localhost:3000
+
+# ---------------------------------------------------------------------------
+# Database
+# ---------------------------------------------------------------------------
+database:
+  url: $DATABASE_URL              # Async PostgreSQL URI
+                                  # e.g. postgresql+asyncpg://user:pass@host:5432/authgate
+
+# ---------------------------------------------------------------------------
+# JWT & cookies
+# ---------------------------------------------------------------------------
+jwt:
+  expiryHours: 24                 # Token lifetime in hours
+  keysDir: ./keys                 # Directory for the RS256 key pair (auto-generated if missing)
+  cookieName: authgate_token      # Name of the auth cookie
+  cookieDomain: ""                # Cookie domain (e.g. .example.com for cross-subdomain)
+  cookieSecure: false             # Set true in production (requires HTTPS)
+
+# ---------------------------------------------------------------------------
+# OAuth connectors
+# ---------------------------------------------------------------------------
+# Each connector defines an OAuth provider. Only connectors with valid
+# clientID + clientSecret will appear on the login page.
+#
+# Supported types: github, google, gitlab
+# ---------------------------------------------------------------------------
+connectors:
+  - type: github
+    id: github
+    name: GitHub
+    config:
+      clientID: $GITHUB_CLIENT_ID
+      clientSecret: $GITHUB_CLIENT_SECRET
+      redirectPath: /auth/github/callback
+
+  - type: google
+    id: google
+    name: Google
+    config:
+      clientID: $GOOGLE_CLIENT_ID
+      clientSecret: $GOOGLE_CLIENT_SECRET
+      redirectPath: /auth/google/callback
+
+  - type: gitlab
+    id: gitlab
+    name: GitLab
+    config:
+      clientID: $GITLAB_CLIENT_ID
+      clientSecret: $GITLAB_CLIENT_SECRET
+      redirectPath: /auth/gitlab/callback
+      baseUrl: https://gitlab.com           # Self-hosted GitLab? Change this URL.

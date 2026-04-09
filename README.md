@@ -24,15 +24,35 @@ We looked at what's already out there:
 
 **AuthGate fills the gap** — a lightweight (~50MB image), fully customizable OAuth login service with a beautiful branded UI, JWT-based auth, and one-command deployment.
 
+### AuthGate vs Dex
+
+A common question — both handle OAuth, but they solve different problems:
+
+| | **AuthGate** | **Dex** |
+|---|---|---|
+| **What it is** | Plug-and-play OAuth login service with user DB | OIDC identity federation/proxy layer |
+| **Login UI** | Full branded login page with theme, logo, colors | Minimal built-in, expects upstream to handle it |
+| **User storage** | PostgreSQL — stores email, name, avatar, provider links | Stateless — no user database, passes tokens through |
+| **JWT** | Custom RS256 JWTs with configurable claims and expiry | Standard OIDC ID tokens |
+| **Theming** | Configurable via YAML config + custom Jinja2 templates, light/dark support | No theming — provides an OIDC interface only |
+| **Config** | YAML config file with `$VAR` env var references | YAML config file with connector definitions |
+| **Use case** | "I need a drop-in auth service with a branded login page" | "I need one OIDC endpoint that federates multiple identity sources" |
+| **Complexity** | Simple — single container, `docker compose up` | More complex — designed for Kubernetes/enterprise identity |
+| **Image size** | ~50MB | ~30MB |
+
+**When to use AuthGate:** You want a complete auth solution — branded login page, user management, JWT issuance — without writing any auth code. Deploy as a sidecar next to your app.
+
+**When to use Dex:** You need to federate multiple identity sources (LDAP, SAML, GitHub, Google) into a single OIDC interface for apps that already speak OIDC. Dex is a connector, not a complete auth service.
+
 ---
 
 ## Features
 
 - **OAuth Providers** — GitHub, Google, GitLab (enable any combination)
-- **Beautiful Login UI** — dark theme, glassmorphism, fully brandable via env vars
+- **Beautiful Login UI** — dark theme, glassmorphism, fully brandable via YAML config
 - **JWT (RS256)** — asymmetric keys, auto-generated, JWKS endpoint for downstream verification
 - **PostgreSQL** — async, production-ready user storage
-- **Fully Customizable** — app name, logo, colors, tagline — all from environment variables
+- **Fully Customizable** — app name, logo, colors, tagline, theme — all from a single YAML config
 - **Kubernetes-Ready** — Helm chart, ConfigMap/Secret separation, health checks
 - **Docker-First** — multi-stage build, ~50MB image, docker-compose for local dev
 - **Privacy-First** — only stores email, name, avatar. No passwords. No tracking.
@@ -48,8 +68,8 @@ We looked at what's already out there:
 git clone https://github.com/farhaan/authgate.git
 cd authgate
 
-cp .env.example .env
-# Edit .env — add at least one OAuth provider's client ID + secret
+cp authgate.example.yaml authgate.yaml
+# Edit authgate.yaml — add at least one OAuth connector with client ID + secret
 
 cd deployments/docker-compose
 docker compose up -d
@@ -63,11 +83,15 @@ Open **http://localhost:8000/login** and you'll see the branded login page.
 # Prerequisites: Python 3.12+, PostgreSQL
 pip install -r requirements.txt
 
-# Set environment variables (or create .env file)
+# Create config
+cp authgate.example.yaml authgate.yaml
+# Edit authgate.yaml with your database URL, secret key, and OAuth credentials
+
+# Set secrets as env vars (referenced via $VAR in authgate.yaml)
+export SECRET_KEY=$(python -c "import secrets; print(secrets.token_urlsafe(32))")
 export DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/authgate
 export GITHUB_CLIENT_ID=your_client_id
 export GITHUB_CLIENT_SECRET=your_client_secret
-export SECRET_KEY=$(python -c "import secrets; print(secrets.token_urlsafe(32))")
 
 uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
@@ -76,58 +100,246 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 ## Configuration
 
-All configuration is done via environment variables (or a `.env` file).
+All configuration is done via a YAML config file — similar to how [Dex](https://dexidp.io/) handles configuration.
 
-### Branding
+On startup, AuthGate loads `authgate.yaml` from the working directory (or the path set by the `AUTHGATE_CONFIG` env var). If the file is not found, AuthGate exits with an error.
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `APP_NAME` | `AuthGate` | Displayed on the login page |
-| `APP_LOGO_URL` | _(none)_ | URL to your logo image |
-| `APP_TAGLINE` | `Secure authentication for your apps` | Subtitle on login page |
-| `ACCENT_COLOR` | `#6366f1` | Primary accent color (hex) |
+**Keep secrets out of the config file.** Use `$VAR` syntax to reference environment variables — store actual secret values in Kubernetes Secrets, `.env` files, or your platform's secret manager.
 
-### Server
+### Full YAML config reference
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `SECRET_KEY` | `change-me-in-production` | **Must change.** Used for signing state tokens |
-| `BASE_URL` | *(auto-detected)* | Public URL of AuthGate (e.g. `http://localhost:8000` or `https://auth.example.com`). Used to build OAuth callback URIs. When empty, falls back to the request's base URL |
-| `GITHUB_REDIRECT_PATH` | *(required if GitHub enabled)* | Callback path for GitHub OAuth (e.g. `/auth/github/callback`, `/github/redirect`, `/callback`) |
-| `GOOGLE_REDIRECT_PATH` | *(required if Google enabled)* | Callback path for Google OAuth (e.g. `/auth/google/callback`, `/login/complete`) |
-| `GITLAB_REDIRECT_PATH` | *(required if GitLab enabled)* | Callback path for GitLab OAuth (e.g. `/auth/gitlab/callback`) |
-| `ALLOWED_REDIRECTS` | *(required)* | Comma-separated glob patterns for valid redirect URLs (e.g. `http://localhost:3000/*`) |
-| `CORS_ORIGINS` | *(required)* | Comma-separated allowed CORS origins (e.g. `http://localhost:3000`) |
+```yaml
+# authgate.yaml
 
-### Database
+# ---------------------------------------------------------------------------
+# Branding & appearance
+# ---------------------------------------------------------------------------
+app:
+  name: MyApp                                      # Displayed on the login page
+  logoUrl: ""                                      # URL to an external logo image
+  logoPath: ""                                     # Local file path; served at /static/logo
+  tagline: Secure authentication for your apps     # Subtitle on the login page
+  accentColor: "#6366f1"                           # Primary accent color (hex)
+  defaultTheme: light                              # light | dark | auto
+  customLoginTemplate: ""                          # Path to a custom Jinja2 login template
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DATABASE_URL` | *(required)* | Async PostgreSQL connection string (e.g. `postgresql+asyncpg://user:pass@host:5432/authgate`) |
+# ---------------------------------------------------------------------------
+# Server
+# ---------------------------------------------------------------------------
+server:
+  host: 0.0.0.0
+  port: 8000
+  baseUrl: ""                     # Public URL (e.g. https://auth.example.com)
+  secretKey: $SECRET_KEY          # Read from SECRET_KEY env var
 
-### JWT
+  allowedRedirects:               # Glob patterns for valid redirect URLs
+    - http://localhost:3000/*
+    - https://app.example.com/*
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `JWT_EXPIRY_HOURS` | `24` | Token lifetime |
-| `JWT_KEYS_DIR` | `./keys` | Directory for RSA key pair (auto-generated if missing) |
-| `COOKIE_NAME` | `authgate_token` | Name of the auth cookie |
-| `COOKIE_DOMAIN` | _(none)_ | Cookie domain (e.g., `.example.com` for cross-subdomain) |
-| `COOKIE_SECURE` | `false` | Set `true` in production (requires HTTPS) |
+  corsOrigins:                    # Allowed CORS origins
+    - http://localhost:3000
+    - https://app.example.com
 
-### OAuth Providers
+# ---------------------------------------------------------------------------
+# Database
+# ---------------------------------------------------------------------------
+database:
+  url: $DATABASE_URL              # Async PostgreSQL URI from env var
 
-Configure one or more. Only providers with both client ID and secret will appear on the login page.
+# ---------------------------------------------------------------------------
+# JWT & cookies
+# ---------------------------------------------------------------------------
+jwt:
+  expiryHours: 24                 # Token lifetime in hours
+  keysDir: ./keys                 # Directory for the RS256 key pair
+  cookieName: authgate_token      # Name of the auth cookie
+  cookieDomain: ""                # e.g. .example.com for cross-subdomain
+  cookieSecure: false             # Set true in production (HTTPS)
 
-| Variable | Description |
-|----------|-------------|
-| `GITHUB_CLIENT_ID` | GitHub OAuth App client ID |
-| `GITHUB_CLIENT_SECRET` | GitHub OAuth App client secret |
-| `GOOGLE_CLIENT_ID` | Google OAuth client ID |
-| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret |
-| `GITLAB_CLIENT_ID` | GitLab OAuth Application ID |
-| `GITLAB_CLIENT_SECRET` | GitLab OAuth Application secret |
-| `GITLAB_BASE_URL` | GitLab instance URL (default: `https://gitlab.com`) |
+# ---------------------------------------------------------------------------
+# OAuth connectors
+# ---------------------------------------------------------------------------
+connectors:
+  - type: github
+    id: github
+    name: GitHub
+    config:
+      clientID: $GITHUB_CLIENT_ID
+      clientSecret: $GITHUB_CLIENT_SECRET
+      redirectPath: /auth/github/callback
+
+  - type: google
+    id: google
+    name: Google
+    config:
+      clientID: $GOOGLE_CLIENT_ID
+      clientSecret: $GOOGLE_CLIENT_SECRET
+      redirectPath: /auth/google/callback
+
+  - type: gitlab
+    id: gitlab
+    name: GitLab
+    config:
+      clientID: $GITLAB_CLIENT_ID
+      clientSecret: $GITLAB_CLIENT_SECRET
+      redirectPath: /auth/gitlab/callback
+      baseUrl: https://gitlab.com
+```
+
+### Custom Login Template
+
+You can replace the built-in login page with your own branded HTML by setting `app.customLoginTemplate` in your config:
+
+```yaml
+app:
+  customLoginTemplate: /etc/authgate/login.html
+```
+
+Custom templates are rendered with Jinja2 and receive the following context variables:
+
+| Variable | Type | Description |
+|----------|------|-------------|
+| `app_name` | str | From `app.name` |
+| `app_logo_url` | str | From `app.logoUrl` (or `/static/logo` if `app.logoPath` is set) |
+| `app_tagline` | str | From `app.tagline` |
+| `accent_color` | str | From `app.accentColor` |
+| `theme` | str | `light`, `dark`, or empty (auto) — see below |
+| `providers` | list | OAuth providers `[{id, name, color, url}]` |
+| `error` | str | Error code from `?error=` query param |
+| `authenticated` | str | Set when redirected back after success |
+
+#### Light & Dark Theme Support
+
+The `theme` variable lets your custom template render in light or dark mode. The value comes from (in order of priority):
+
+1. `?theme=light` or `?theme=dark` query param (set by the client app)
+2. `app.defaultTheme` from your config (`light`, `dark`, or `auto`)
+3. Empty string when `auto` — let the template handle it via JS / `prefers-color-scheme`
+
+**Example custom template** with theme support:
+
+```html
+<!DOCTYPE html>
+<html lang="en"{% if theme %} data-theme="{{ theme }}"{% endif %}>
+<head>
+    {% if not theme %}
+    <script>
+        if (window.matchMedia("(prefers-color-scheme:dark)").matches) {
+            document.documentElement.setAttribute("data-theme", "dark");
+        }
+    </script>
+    {% endif %}
+    <style>
+        :root {
+            --bg: #ffffff;
+            --text: #333333;
+            --accent: {{ accent_color }};
+        }
+        [data-theme="dark"] {
+            --bg: #0d1117;
+            --text: #e6edf3;
+        }
+        body {
+            background: var(--bg);
+            color: var(--text);
+        }
+    </style>
+</head>
+<body>
+    <h1>Sign in to {{ app_name }}</h1>
+    {% for provider in providers %}
+        <a href="{{ provider.url }}">Continue with {{ provider.name }}</a>
+    {% endfor %}
+</body>
+</html>
+```
+
+**Client apps** that want to sync their own theme preference can append `?theme=light` or `?theme=dark` to the AuthGate login URL:
+
+```javascript
+// In your client app:
+const theme = document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
+window.location.href = `https://auth.example.com/login?redirect_url=${redirectUrl}&theme=${theme}`;
+```
+
+Apps that don't care about theming can omit the param — AuthGate falls back to `app.defaultTheme` from the config.
+
+### Kubernetes: ConfigMap + Secret
+
+For Kubernetes deployments, put the config in a ConfigMap and secrets in a Secret. The `$VAR` syntax bridges them:
+
+**Secret** (actual credentials):
+
+```bash
+kubectl create secret generic authgate-secrets \
+  --from-literal=SECRET_KEY="$(openssl rand -base64 32)" \
+  --from-literal=DATABASE_URL="postgresql+asyncpg://user:pass@host:5432/authgate" \
+  --from-literal=GITHUB_CLIENT_ID="your-client-id" \
+  --from-literal=GITHUB_CLIENT_SECRET="your-client-secret"
+```
+
+**ConfigMap** (YAML config referencing secrets via `$VAR`):
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: authgate-config
+data:
+  authgate.yaml: |
+    app:
+      name: MyApp
+      accentColor: "#6366f1"
+    server:
+      secretKey: $SECRET_KEY
+      allowedRedirects:
+        - https://app.example.com/*
+      corsOrigins:
+        - https://app.example.com
+    database:
+      url: $DATABASE_URL
+    jwt:
+      cookieSecure: true
+    connectors:
+      - type: github
+        id: github
+        name: GitHub
+        config:
+          clientID: $GITHUB_CLIENT_ID
+          clientSecret: $GITHUB_CLIENT_SECRET
+          redirectPath: /auth/github/callback
+```
+
+**Deployment** (mount both):
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: authgate
+spec:
+  template:
+    spec:
+      containers:
+        - name: authgate
+          image: ghcr.io/farhaan/authgate:latest
+          env:
+            - name: AUTHGATE_CONFIG
+              value: /etc/authgate/authgate.yaml
+          envFrom:
+            - secretRef:
+                name: authgate-secrets
+          volumeMounts:
+            - name: config
+              mountPath: /etc/authgate
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: authgate-config
+```
+
+The config file reads `$SECRET_KEY`, `$DATABASE_URL`, etc. from the environment variables injected by the Secret.
 
 ---
 
@@ -138,21 +350,21 @@ Configure one or more. Only providers with both client ID and secret will appear
 1. Go to **Settings > Developer settings > OAuth Apps > New OAuth App**
 2. Set **Homepage URL** to your AuthGate URL (e.g., `http://localhost:8000`)
 3. Set **Authorization callback URL** to `{BASE_URL}{GITHUB_REDIRECT_PATH}` (e.g. `http://localhost:8000/auth/github/callback`)
-4. Copy the Client ID and Client Secret into your `.env`
+4. Add the Client ID and Client Secret to your `authgate.yaml` connector config (use `$VAR` syntax to reference env vars)
 
 ### Google
 
 1. Go to **Google Cloud Console > APIs & Services > Credentials**
 2. Create an **OAuth 2.0 Client ID** (Web application)
 3. Add **Authorized redirect URI**: `{BASE_URL}{GOOGLE_REDIRECT_PATH}` (e.g. `http://localhost:8000/auth/google/callback`)
-4. Copy the Client ID and Client Secret into your `.env`
+4. Add the Client ID and Client Secret to your `authgate.yaml` connector config (use `$VAR` syntax to reference env vars)
 
 ### GitLab
 
 1. Go to **User Settings > Applications**
 2. Set **Redirect URI** to `{BASE_URL}{GITLAB_REDIRECT_PATH}` (e.g. `http://localhost:8000/auth/gitlab/callback`)
 3. Select scope: `read_user`
-4. Copy the Application ID and Secret into your `.env`
+4. Add the Application ID and Secret to your `authgate.yaml` connector config (use `$VAR` syntax to reference env vars)
 
 ---
 
@@ -220,7 +432,7 @@ Use the public key to verify the JWT signature in your app without network calls
 |----------|--------|-------------|
 | `/login` | GET | Branded login page (pass `?redirect_url=...`) |
 | `/auth/{provider}` | GET | Start OAuth flow (`github`, `google`, `gitlab`) |
-| `{PROVIDER_REDIRECT_PATH}` | GET | OAuth callback — path set via env var per provider |
+| `{PROVIDER_REDIRECT_PATH}` | GET | OAuth callback — path set per connector in config |
 | `/api/verify` | GET | Verify JWT, returns `{ valid, user }` |
 | `/api/userinfo` | GET | Get authenticated user profile |
 | `/.well-known/jwks.json` | GET | Public keys for JWT verification |
@@ -251,6 +463,10 @@ kubectl create secret generic authgate-secrets \
   --from-literal=GITHUB_CLIENT_ID="your-client-id" \
   --from-literal=GITHUB_CLIENT_SECRET="your-client-secret"
 ```
+
+> **Tip:** For a cleaner setup, use an `authgate.yaml` config file with `$VAR` references
+> mounted via ConfigMap + Secret. See [Configuration (YAML)](#configuration-yaml) above
+> for a complete Kubernetes example with ConfigMap, Secret, and Deployment manifests.
 
 **Step 2: Install the chart**
 
@@ -391,7 +607,7 @@ sequenceDiagram
 authgate/
 ├── app/
 │   ├── main.py              # FastAPI entrypoint
-│   ├── config.py             # Pydantic settings from env
+│   ├── config.py             # YAML config loader
 │   ├── database.py           # Async SQLAlchemy engine
 │   ├── models.py             # User model
 │   ├── schemas.py            # Pydantic response schemas
@@ -412,7 +628,8 @@ authgate/
 │   └── helm/authgate/        # Kubernetes Helm chart
 ├── .github/workflows/        # CI/CD pipeline
 ├── Dockerfile                # Production container
-├── .env.example              # Configuration reference
+├── authgate.example.yaml     # Configuration reference
+├── authgate.example.yaml     # YAML configuration reference
 └── requirements.txt
 ```
 

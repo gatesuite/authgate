@@ -5,7 +5,7 @@ from urllib.parse import quote
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from app.config import settings
@@ -13,7 +13,6 @@ from app.database import Base, engine
 from app.jwt_handler import jwt_handler
 from app.oauth import PROVIDER_DISPLAY, get_enabled_providers, init_providers
 from app.routes import api, auth, health
-
 
 logging.basicConfig(
     level=logging.INFO,
@@ -58,6 +57,17 @@ app.include_router(auth.router)
 app.include_router(api.router)
 app.include_router(health.router)
 
+# Serve local logo file at /static/logo if APP_LOGO_PATH is configured
+_logo_path = settings.APP_LOGO_PATH
+if _logo_path and os.path.isfile(_logo_path):
+    import mimetypes
+
+    _logo_media_type = mimetypes.guess_type(_logo_path)[0] or "image/png"
+
+    @app.get("/static/logo")
+    async def serve_logo():
+        return FileResponse(_logo_path, media_type=_logo_media_type)
+
 
 @app.get("/")
 async def root():
@@ -73,6 +83,13 @@ def _build_login_context(request: Request):
     redirect_url = request.query_params.get("redirect_url", "")
     error = request.query_params.get("error", "")
     authenticated = request.query_params.get("authenticated", "")
+    theme_param = request.query_params.get("theme", "")
+    if theme_param in ("light", "dark"):
+        theme = theme_param
+    elif settings.DEFAULT_THEME in ("light", "dark"):
+        theme = settings.DEFAULT_THEME
+    else:
+        theme = ""  # "auto" — let the template handle it via prefers-color-scheme
 
     providers = get_enabled_providers()
     provider_list = [
@@ -88,15 +105,22 @@ def _build_login_context(request: Request):
         for name in providers
     ]
 
+    # Prefer local logo file served at /static/logo over external URL
+    if settings.APP_LOGO_PATH and os.path.isfile(settings.APP_LOGO_PATH):
+        logo_url = "/static/logo"
+    else:
+        logo_url = settings.APP_LOGO_URL
+
     return {
         "request": request,
         "app_name": settings.APP_NAME,
-        "app_logo_url": settings.APP_LOGO_URL,
+        "app_logo_url": logo_url,
         "app_tagline": settings.APP_TAGLINE,
         "accent_color": settings.ACCENT_COLOR,
         "providers": provider_list,
         "error": error,
         "authenticated": authenticated,
+        "theme": theme if theme in ("light", "dark") else "",
     }
 
 
@@ -135,7 +159,5 @@ async def login_variant(request: Request, design_num: int):
 async def logout(request: Request):
     redirect_url = request.query_params.get("redirect_url", "/login")
     response = RedirectResponse(redirect_url)
-    response.delete_cookie(
-        settings.COOKIE_NAME, domain=settings.COOKIE_DOMAIN or None
-    )
+    response.delete_cookie(settings.COOKIE_NAME, domain=settings.COOKIE_DOMAIN or None)
     return response

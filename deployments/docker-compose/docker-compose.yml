@@ -1,6 +1,6 @@
 services:
   authgate:
-    image: ghcr.io/patelfarhaan/authgate:1.0.5
+    image: ghcr.io/patelfarhaan/authgate:1.0.7
     ports:
       - "8000:8000"
     env_file:
