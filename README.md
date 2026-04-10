@@ -125,7 +125,7 @@ app:
   logoUrl: ""                                      # URL to an external logo image
   logoPath: ""                                     # Local file path; served at /static/logo
   tagline: Secure authentication for your apps     # Subtitle on the login page
-  accentColor: "#6366f1"                           # Primary accent color (hex)
+  accentColor: "#0060F0"                           # Primary accent color (hex)
   defaultTheme: light                              # light | dark | auto
   customLoginTemplate: ""                          # Path to a custom Jinja2 login template
 
@@ -295,7 +295,7 @@ data:
   authgate.yaml: |
     app:
       name: MyApp
-      accentColor: "#6366f1"
+      accentColor: "#0060F0"
     server:
       secretKey: $SECRET_KEY
       allowedRedirects:
@@ -471,7 +471,7 @@ kubectl create secret generic authgate-secrets \
 ```
 
 > **Tip:** For a cleaner setup, use an `authgate.yaml` config file with `$VAR` references
-> mounted via ConfigMap + Secret. See [Configuration (YAML)](#configuration-yaml) above
+> mounted via ConfigMap + Secret. See [Configuration](#configuration) above
 > for a complete Kubernetes example with ConfigMap, Secret, and Deployment manifests.
 
 **Step 2: Install the chart**
