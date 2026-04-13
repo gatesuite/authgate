@@ -412,6 +412,14 @@ After authentication, AuthGate redirects back to your app with a JWT:
 https://app.example.com/dashboard?token=eyJhbG...
 ```
 
+If this is the user's first sign-in, AuthGate appends `&new_user=true` so your app can trigger onboarding flows, welcome emails, or analytics events:
+
+```
+https://app.example.com/dashboard?token=eyJhbG...&new_user=true
+```
+
+The param is absent on subsequent logins. It's a UX signal — not cryptographically signed — so use it for things like "show the welcome banner", not for security-critical logic.
+
 AuthGate also sets an HttpOnly cookie (`authgate_token`) — useful when your app and AuthGate share a domain.
 
 ### Step 3: Verify the token

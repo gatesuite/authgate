@@ -1,6 +1,6 @@
 services:
   authgate:
-    image: ghcr.io/patelfarhaan/authgate:1.0.9
+    image: ghcr.io/patelfarhaan/authgate:1.0.9 # x-release-please-version
     build:
       context: ../..
       dockerfile: Dockerfile
