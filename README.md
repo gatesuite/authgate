@@ -422,6 +422,31 @@ AuthGate also sets an HttpOnly cookie (`authgate_token`) — useful when your ap
 curl -H "Authorization: Bearer <token>" https://auth.example.com/api/verify
 ```
 
+Success response:
+
+```json
+{
+  "valid": true,
+  "user": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "email": "user@example.com",
+    "name": "Jane Doe",
+    "avatar_url": "https://avatars.githubusercontent.com/u/12345",
+    "providers": ["github", "google"],
+    "created_at": "2026-04-01T12:34:56+00:00",
+    "last_login_at": "2026-04-10T09:15:22+00:00"
+  }
+}
+```
+
+Failure response (missing, expired, or tampered token):
+
+```json
+{ "valid": false, "user": null }
+```
+
+> **Note:** `/api/verify` always returns HTTP `200 OK` — check the `valid` boolean, not the status code. Verification is a read, not an auth-gated action, so status codes carry no auth signal. Use `/api/userinfo` if you want a true auth-gated endpoint that returns `401` on failure.
+
 **Option B: Validate locally using JWKS**
 
 ```bash
@@ -439,13 +464,51 @@ Use the public key to verify the JWT signature in your app without network calls
 | `/login` | GET | Branded login page (pass `?redirect_url=...`) |
 | `/auth/{provider}` | GET | Start OAuth flow (`github`, `google`, `gitlab`) |
 | `{PROVIDER_REDIRECT_PATH}` | GET | OAuth callback — path set per connector in config |
-| `/api/verify` | GET | Verify JWT, returns `{ valid, user }` |
-| `/api/userinfo` | GET | Get authenticated user profile |
+| `/api/verify` | GET | Verify JWT — always `200 OK`, returns `{ valid, user }` |
+| `/api/userinfo` | GET | Get authenticated user profile — `401` if invalid/missing token |
 | `/.well-known/jwks.json` | GET | Public keys for JWT verification |
 | `/logout` | POST | Clear auth cookie |
 | `/health` | GET | Health check |
 
 **Authentication:** Pass token as `Authorization: Bearer <token>` header or via the `authgate_token` cookie.
+
+---
+
+## Managing Users
+
+### Disabling a user
+
+Each user has an `is_active` boolean on the `users` table (default `true`). Set it to `false` to immediately:
+
+- Block future logins at the OAuth callback — the user is redirected to `/login?error=account_disabled`
+- Invalidate active sessions — `/api/verify` returns `{ "valid": false }` and `/api/userinfo` returns `401` for disabled users, even if their JWT hasn't expired
+
+Toggle it directly in the database:
+
+```sql
+-- Disable a user
+UPDATE users SET is_active = false WHERE email = 'user@example.com';
+
+-- Re-enable
+UPDATE users SET is_active = true WHERE email = 'user@example.com';
+```
+
+A dedicated admin API / UI for this is on the roadmap.
+
+### Upgrading from pre-`is_active` versions
+
+AuthGate creates tables via `Base.metadata.create_all`, which doesn't `ALTER` existing tables. If you're upgrading an existing deployment, run once against your database:
+
+```sql
+ALTER TABLE users ADD COLUMN is_active BOOLEAN NOT NULL DEFAULT TRUE;
+```
+
+The older `provider` and `provider_id` columns on `users` (deprecated and removed in this release) can stay — they're harmless. If you want a clean schema:
+
+```sql
+ALTER TABLE users DROP COLUMN provider;
+ALTER TABLE users DROP COLUMN provider_id;
+```
 
 ---
 

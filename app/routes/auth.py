@@ -107,6 +107,9 @@ async def _handle_callback(request: Request, provider: str):
         )
         user = result.scalar_one_or_none()
 
+        if user and not user.is_active:
+            return RedirectResponse("/login?error=account_disabled")
+
         if user:
             user.last_login_at = datetime.now(timezone.utc)
             user.name = oauth_user.name or user.name
@@ -165,9 +168,11 @@ async def _handle_callback(request: Request, provider: str):
 
 
 for _provider_name, _path in PROVIDER_REDIRECT_PATHS.items():
+
     def _make_handler(pname: str):
         async def handler(request: Request):
             return await _handle_callback(request, pname)
+
         handler.__name__ = f"callback_{pname}"
         return handler
 

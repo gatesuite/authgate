@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, ForeignKey, String, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -22,14 +22,11 @@ class User(Base):
     last_login_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     providers: Mapped[list["UserProvider"]] = relationship(
         back_populates="user", cascade="all, delete-orphan", lazy="selectin"
     )
-
-    # Deprecated columns kept for backward-compat migration; ignored in new code.
-    provider: Mapped[str] = mapped_column(String(50), default="")
-    provider_id: Mapped[str] = mapped_column(String(255), default="")
 
 
 class UserProvider(Base):

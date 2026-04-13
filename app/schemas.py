@@ -8,7 +8,7 @@ class UserInfo(BaseModel):
     email: str
     name: str
     avatar_url: str
-    provider: str
+    providers: list[str]
     created_at: datetime
     last_login_at: datetime
 

@@ -213,6 +213,8 @@
                 Could not retrieve your email. Ensure your email is public or grant email access.
             {% elif error == 'invalid_state' %}
                 Session expired. Please try again.
+            {% elif error == 'account_disabled' %}
+                Your account has been disabled. Contact your administrator.
             {% else %}
                 Authentication failed: {{ error }}
             {% endif %}
