@@ -1,0 +1,103 @@
+---
+title: AuthGate
+description: Lightweight, customizable OAuth login service for your apps — deploy as a sidecar, add OAuth to any app in minutes.
+template: splash
+hero:
+  tagline: Plug-and-play authentication gateway. Add OAuth to any app in minutes with a branded login page, JWTs, and a ~50MB container.
+  image:
+    file: ../../assets/logo.svg
+  actions:
+    - text: Quick Start
+      link: /authgate/quickstart/
+      icon: right-arrow
+      variant: primary
+    - text: View on GitHub
+      link: https://github.com/PatelFarhaan/authgate
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+<div style="display: flex; gap: 1rem; justify-content: center; margin: 2rem auto; flex-wrap: wrap; max-width: 960px;">
+  <img src="/authgate/screenshots/login-light.png" alt="Login page — light mode" style="max-width: 46%; border-radius: 8px; border: 1px solid var(--sl-color-hairline);" />
+  <img src="/authgate/screenshots/login-dark.png" alt="Login page — dark mode" style="max-width: 46%; border-radius: 8px; border: 1px solid var(--sl-color-hairline);" />
+</div>
+
+## Why AuthGate?
+
+We looked at what's already out there:
+
+| Solution | Problem |
+|----------|---------|
+| **Keycloak** | Heavy, complex, overkill for most apps (~500MB+ image) |
+| **Authentik** | Feature-rich but heavyweight, steep learning curve |
+| **Authelia** | Focused on 2FA/SSO proxy, not a login service |
+| **oauth2-proxy** | No login UI, limited customization |
+| **Dex** | OIDC connector only, no user management |
+
+**AuthGate fills the gap** — a lightweight (~50MB image), fully customizable OAuth login service with a beautiful branded UI, JWT-based auth, and one-command deployment.
+
+## Features
+
+<CardGrid>
+  <Card title="Lightweight (~50MB)" icon="rocket">
+    Keycloak is 500MB+. AuthGate runs in a tiny container, starts in seconds, and sips memory.
+  </Card>
+  <Card title="Branded login page" icon="pencil">
+    Fully customizable via YAML — app name, logo, accent color, light/dark themes, custom Jinja2 templates.
+  </Card>
+  <Card title="JWT (RS256)" icon="seti:lock">
+    Asymmetric keys, auto-generated. Downstream apps verify locally via JWKS — no network round-trip.
+  </Card>
+  <Card title="OAuth providers" icon="puzzle">
+    GitHub, Google, GitLab out of the box. Enable any combination via YAML.
+  </Card>
+  <Card title="Kubernetes-ready" icon="setting">
+    Helm chart, ConfigMap/Secret separation, health checks, HPA, PDB, topology spread.
+  </Card>
+  <Card title="Privacy-first" icon="approve-check-circle">
+    Only stores name, email, and avatar. No passwords, no tracking, no analytics.
+  </Card>
+</CardGrid>
+
+## Get started in 3 steps
+
+<CardGrid>
+  <Card title="1. Install" icon="download">
+    ```bash
+    curl -O https://raw.githubusercontent.com/PatelFarhaan/authgate/main/docker-compose.yml
+    docker compose up -d
+    ```
+  </Card>
+  <Card title="2. Configure" icon="setting">
+    Set OAuth credentials as env vars before `docker compose up`:
+    ```bash
+    export GITHUB_CLIENT_ID=...
+    export GITHUB_CLIENT_SECRET=...
+    ```
+    See [Configuration](/authgate/configuration/) for all options.
+  </Card>
+  <Card title="3. Integrate" icon="rocket">
+    Redirect users to `http://localhost:8000/login?redirect_url=...`. AuthGate handles the OAuth dance and returns a JWT. See the [Integration Guide](/authgate/integration/).
+  </Card>
+</CardGrid>
+
+## AuthGate vs Dex
+
+A common question — both handle OAuth, but they solve different problems:
+
+| | **AuthGate** | **Dex** |
+|---|---|---|
+| **What it is** | Plug-and-play OAuth login service with user DB | OIDC identity federation/proxy layer |
+| **Login UI** | Full branded login page with theme, logo, colors | Minimal built-in, expects upstream to handle it |
+| **User storage** | PostgreSQL — stores email, name, avatar, provider links | Stateless — no user database, passes tokens through |
+| **JWT** | Custom RS256 JWTs with configurable claims and expiry | Standard OIDC ID tokens |
+| **Theming** | Configurable via YAML + custom Jinja2 templates, light/dark support | No theming — provides an OIDC interface only |
+| **Use case** | "I need a drop-in auth service with a branded login page" | "I need one OIDC endpoint that federates multiple identity sources" |
+| **Complexity** | Simple — single container, `docker compose up` | More complex — designed for Kubernetes/enterprise identity |
+| **Image size** | ~50MB | ~30MB |
+
+**When to use AuthGate:** You want a complete auth solution — branded login page, user management, JWT issuance — without writing any auth code. Deploy as a sidecar next to your app.
+
+**When to use Dex:** You need to federate multiple identity sources (LDAP, SAML, GitHub, Google) into a single OIDC interface for apps that already speak OIDC.

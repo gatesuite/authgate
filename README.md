@@ -5,9 +5,9 @@
 > Plug-and-play authentication gateway — deploy as a sidecar, add OAuth to any app in minutes.
 
 <p align="center">
-  <img src="./docs/images/login-light.png" alt="AuthGate Login — Light Mode" width="46%" />
+  <img src="./docs/public/screenshots/login-light.png" alt="AuthGate Login — Light Mode" width="46%" />
   &nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="./docs/images/login-dark.png" alt="AuthGate Login — Dark Mode" width="46%" />
+  <img src="./docs/public/screenshots/login-dark.png" alt="AuthGate Login — Dark Mode" width="46%" />
 </p>
 
 <p align="center">
@@ -68,20 +68,42 @@ A common question — both handle OAuth, but they solve different problems:
 
 ## Quick Start
 
-### Docker Compose (recommended for local dev)
+### One-command deploy (recommended)
 
 ```bash
-git clone https://github.com/farhaan/authgate.git
-cd authgate
-
-cp authgate.example.yaml authgate.yaml
-# Edit authgate.yaml — add at least one OAuth connector with client ID + secret
-
-cd deployments/docker-compose
+curl -O https://raw.githubusercontent.com/PatelFarhaan/authgate/main/docker-compose.yml
 docker compose up -d
 ```
 
-Open **http://localhost:8000/login** and you'll see the branded login page.
+Open **http://localhost:8000/login** — you'll see the branded login page.
+
+**That's it.** No config files to create, no repo to clone. Postgres is bundled in the same stack. The published `ghcr.io/patelfarhaan/authgate:latest` image is used.
+
+To enable OAuth providers, set credentials before `up`:
+
+```bash
+export GITHUB_CLIENT_ID=your_id
+export GITHUB_CLIENT_SECRET=your_secret
+# same for GOOGLE_ / GITLAB_ as needed
+docker compose up -d
+```
+
+To pin a specific version instead of `latest`:
+
+```bash
+export AUTHGATE_VERSION=2.0.0
+docker compose up -d
+```
+
+### For contributors: build from source
+
+```bash
+git clone https://github.com/PatelFarhaan/authgate.git
+cd authgate/deployments/docker-compose
+docker compose up -d --build
+```
+
+This mounts your local `authgate.yaml` and builds the image from the local `Dockerfile` — useful for testing code changes.
 
 ### Without Docker
 
@@ -89,11 +111,9 @@ Open **http://localhost:8000/login** and you'll see the branded login page.
 # Prerequisites: Python 3.12+, PostgreSQL
 pip install -r requirements.txt
 
-# Create config
 cp authgate.example.yaml authgate.yaml
 # Edit authgate.yaml with your database URL, secret key, and OAuth credentials
 
-# Set secrets as env vars (referenced via $VAR in authgate.yaml)
 export SECRET_KEY=$(python -c "import secrets; print(secrets.token_urlsafe(32))")
 export DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/authgate
 export GITHUB_CLIENT_ID=your_client_id

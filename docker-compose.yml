@@ -1,0 +1,115 @@
+# AuthGate — zero-config local deployment
+# ────────────────────────────────────────────────────────────────────────
+#
+# Quick start:
+#   docker compose up -d
+#   open http://localhost:8000/login
+#
+# To configure OAuth providers, export these before `docker compose up`:
+#   export GITHUB_CLIENT_ID=... GITHUB_CLIENT_SECRET=...
+#   export GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=...
+#   export GITLAB_CLIENT_ID=... GITLAB_CLIENT_SECRET=...
+#
+# To pin a specific AuthGate version (defaults to latest):
+#   export AUTHGATE_VERSION=2.0.0
+#
+# ────────────────────────────────────────────────────────────────────────
+
+services:
+  authgate:
+    image: ghcr.io/patelfarhaan/authgate:${AUTHGATE_VERSION:-latest}
+    ports:
+      - "8000:8000"
+    environment:
+      # Database — wired to the postgres service below
+      DATABASE_URL: postgresql+asyncpg://authgate:authgate@postgres:5432/authgate
+      # Signing secret for OAuth state tokens (HS256). Override in production.
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production-this-is-insecure}
+      # OAuth provider credentials — set these as env vars to enable each provider
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GITLAB_CLIENT_ID: ${GITLAB_CLIENT_ID:-}
+      GITLAB_CLIENT_SECRET: ${GITLAB_CLIENT_SECRET:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - authgate-keys:/app/keys
+    configs:
+      - source: authgate_yaml
+        target: /app/authgate.yaml
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: authgate
+      POSTGRES_PASSWORD: authgate
+      POSTGRES_DB: authgate
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U authgate"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  authgate-keys:
+
+configs:
+  authgate_yaml:
+    content: |
+      app:
+        name: AuthGate
+        tagline: Secure authentication for your apps
+        accentColor: "#0060F0"
+        defaultTheme: light
+
+      server:
+        host: 0.0.0.0
+        port: 8000
+        secretKey: $$SECRET_KEY
+        allowedRedirects:
+          - http://localhost:3000/*
+        corsOrigins:
+          - http://localhost:3000
+
+      database:
+        url: $$DATABASE_URL
+
+      jwt:
+        expiryHours: 24
+        keysDir: ./keys
+        cookieName: authgate_token
+        cookieSecure: false
+
+      connectors:
+        - type: github
+          id: github
+          name: GitHub
+          config:
+            clientID: $$GITHUB_CLIENT_ID
+            clientSecret: $$GITHUB_CLIENT_SECRET
+            redirectPath: /auth/github/callback
+
+        - type: google
+          id: google
+          name: Google
+          config:
+            clientID: $$GOOGLE_CLIENT_ID
+            clientSecret: $$GOOGLE_CLIENT_SECRET
+            redirectPath: /auth/google/callback
+
+        - type: gitlab
+          id: gitlab
+          name: GitLab
+          config:
+            clientID: $$GITLAB_CLIENT_ID
+            clientSecret: $$GITLAB_CLIENT_SECRET
+            redirectPath: /auth/gitlab/callback
+            baseUrl: https://gitlab.com
