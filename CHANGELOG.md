@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.1.0](https://github.com/gatesuite/authgate/compare/v2.0.0...v2.1.0) (2026-04-16)
+
+
+### Features
+
+* **docs:** add Starlight docs site with GitHub-style theme and ([8df22aa](https://github.com/gatesuite/authgate/commit/8df22aa2d908ee31b81468ddb98a32380248bf94))
+* **docs:** add Starlight documentation site ([8122c5c](https://github.com/gatesuite/authgate/commit/8122c5c7c298a0eda8d5d872f30594058223b179))
+* **docs:** add Starlight documentation site ([8df22aa](https://github.com/gatesuite/authgate/commit/8df22aa2d908ee31b81468ddb98a32380248bf94))
+* **docs:** add Starlight documentation site with GitHub-style theme ([a83d758](https://github.com/gatesuite/authgate/commit/a83d7580814afe7659c22f0e983ec7fb0ec3e963))
+
+
+### Bug Fixes
+
+* theme live reload, test infrastructure, and make app-up ([b434366](https://github.com/gatesuite/authgate/commit/b434366f91a5918307ca2bca07ba0eca35e19aa7))
+
 ## [2.0.0](https://github.com/PatelFarhaan/authgate/compare/v1.0.9...v2.0.0) (2026-04-13)
 
 
