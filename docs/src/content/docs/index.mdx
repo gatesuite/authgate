@@ -19,10 +19,29 @@ hero:
 
 import { Card, CardGrid } from '@astrojs/starlight/components';
 
-<div style="display: flex; gap: 1rem; justify-content: center; margin: 2rem auto; flex-wrap: wrap; max-width: 960px;">
-  <img src="/authgate/screenshots/login-light.png" alt="Login page — light mode" style="max-width: 46%; border-radius: 8px; border: 1px solid var(--sl-color-hairline);" />
-  <img src="/authgate/screenshots/login-dark.png" alt="Login page — dark mode" style="max-width: 46%; border-radius: 8px; border: 1px solid var(--sl-color-hairline);" />
+<div className="hero-screenshots">
+  <img src="/authgate/screenshots/login-light.png" alt="Login page — light mode" />
+  <img src="/authgate/screenshots/login-dark.png" alt="Login page — dark mode" />
 </div>
+
+<style>{`
+  .hero-screenshots {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 1rem !important;
+    max-width: 900px !important;
+    margin: 2rem auto !important;
+    align-items: start !important;
+  }
+  .hero-screenshots img {
+    width: 100% !important;
+    height: auto !important;
+    display: block !important;
+    border-radius: 8px !important;
+    border: 1px solid var(--sl-color-hairline) !important;
+    margin: 0 !important;
+  }
+`}</style>
 
 ## Why AuthGate?
 
