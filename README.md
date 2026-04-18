@@ -1,8 +1,22 @@
-# AuthGate
+<p align="center">
+  <h1 align="center">AuthGate</h1>
+  <p align="center">
+    Lightweight, customizable OAuth login service for your apps.
+    <br />
+    Deploy as a sidecar. Add auth to any app in minutes.
+  </p>
+</p>
 
-**Lightweight, customizable OAuth login service for your apps.**
+<p align="center">
+  <a href="https://github.com/gatesuite/authgate/releases"><img src="https://img.shields.io/github/v/release/gatesuite/authgate" alt="Latest Release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
+  <a href="https://github.com/gatesuite/authgate/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/gatesuite/authgate/ci.yml?branch=main&label=CI" alt="CI Status"></a>
+  <a href="https://ghcr.io/gatesuite/authgate"><img src="https://img.shields.io/badge/docker-ghcr.io%2Fgatesuite%2Fauthgate-blue?logo=docker&logoColor=white" alt="Docker Image"></a>
+  <a href="https://ghcr.io/gatesuite/authgate"><img src="https://img.shields.io/badge/image%20size-~50MB-brightgreen" alt="Image Size"></a>
+  <a href="https://github.com/gatesuite/authgate/stargazers"><img src="https://img.shields.io/github/stars/gatesuite/authgate?style=social" alt="GitHub Stars"></a>
+</p>
 
-> Plug-and-play authentication gateway — deploy as a sidecar, add OAuth to any app in minutes.
+---
 
 <p align="center">
   <img src="./docs/public/screenshots/login-light.png" alt="AuthGate Login — Light Mode" width="46%" />
@@ -18,7 +32,7 @@
 
 ## Why AuthGate?
 
-We looked at what's already out there:
+Every app needs authentication, but the existing options force a choice between too much and too little:
 
 | Solution | Problem |
 |----------|---------|
@@ -28,11 +42,11 @@ We looked at what's already out there:
 | **oauth2-proxy** | No login UI, limited customization |
 | **Dex** | OIDC connector only, no user management |
 
-**AuthGate fills the gap** — a lightweight (~50MB image), fully customizable OAuth login service with a beautiful branded UI, JWT-based auth, and one-command deployment.
+**AuthGate fills the gap** — a lightweight (~50MB image), fully customizable OAuth login service with a branded UI, JWT-based auth, and one-command deployment.
 
 ### AuthGate vs Dex
 
-A common question — both handle OAuth, but they solve different problems:
+Both handle OAuth, but they solve different problems:
 
 | | **AuthGate** | **Dex** |
 |---|---|---|
@@ -46,9 +60,26 @@ A common question — both handle OAuth, but they solve different problems:
 | **Complexity** | Simple — single container, `docker compose up` | More complex — designed for Kubernetes/enterprise identity |
 | **Image size** | ~50MB | ~30MB |
 
-**When to use AuthGate:** You want a complete auth solution — branded login page, user management, JWT issuance — without writing any auth code. Deploy as a sidecar next to your app.
+**Use AuthGate** when you want a complete auth solution — branded login page, user management, JWT issuance — without writing any auth code. Deploy as a sidecar next to your app.
 
-**When to use Dex:** You need to federate multiple identity sources (LDAP, SAML, GitHub, Google) into a single OIDC interface for apps that already speak OIDC. Dex is a connector, not a complete auth service.
+**Use Dex** when you need to federate multiple identity sources (LDAP, SAML, GitHub, Google) into a single OIDC interface for apps that already speak OIDC.
+
+---
+
+## Table of Contents
+
+- [Features](#features)
+- [Quick Start](#quick-start)
+- [Configuration](#configuration)
+- [OAuth Provider Setup](#oauth-provider-setup)
+- [Integration Guide](#integration-guide)
+- [API Reference](#api-reference)
+- [Managing Users](#managing-users)
+- [Deployment](#deployment)
+- [Tech Stack](#tech-stack)
+- [Architecture](#architecture)
+- [Project Structure](#project-structure)
+- [Security](#security)
 
 ---
 
@@ -78,7 +109,7 @@ docker compose up -d
 
 Open **http://localhost:8000/login** — you'll see the branded login page.
 
-**That's it.** No config files to create, no repo to clone. Postgres is bundled in the same stack. The published `ghcr.io/gatesuite/authgate:latest` image is used.
+No config files to create, no repo to clone. Postgres is bundled in the same stack. The published `ghcr.io/gatesuite/authgate:latest` image is used.
 
 To enable OAuth providers, set credentials before `up`:
 
@@ -226,7 +257,7 @@ connectors:
 
 ### Custom Login Template
 
-You can replace the built-in login page with your own branded HTML by setting `app.customLoginTemplate` in your config:
+Replace the built-in login page with your own branded HTML by setting `app.customLoginTemplate` in your config:
 
 ```yaml
 app:
@@ -411,21 +442,21 @@ The config file reads `$SECRET_KEY`, `$DATABASE_URL`, etc. from the environment 
 ### How it works
 
 ```
-┌────────-──┐     1. redirect     ┌─-──────────┐
-│  Your App │ ──────────────────→ │  AuthGate  │
-│           │                     │            │
-│           │  4. redirect back   │  /login    │
-│           │ ←────────────────── │  (branded) │
-│           │    with JWT token   │            │
-└─────────-─┘                     └────┬──-────┘
-                                       │ 2. OAuth
-                                       ↓
-                                 ┌────────-───┐
-                                 │  GitHub /  │
-                                 │  Google /  │
-                                 │  GitLab    │
-                                 └─────────-──┘
-                                   3. callback
+┌────────────┐     1. redirect     ┌────────────┐
+│  Your App  │ ──────────────────→ │  AuthGate  │
+│            │                     │            │
+│            │  4. redirect back   │  /login    │
+│            │ ←────────────────── │  (branded) │
+│            │    with JWT token   │            │
+└────────────┘                     └─────┬──────┘
+                                         │ 2. OAuth
+                                         ↓
+                                   ┌────────────┐
+                                   │  GitHub /  │
+                                   │  Google /  │
+                                   │  GitLab    │
+                                   └────────────┘
+                                     3. callback
 ```
 
 ### Step 1: Redirect unauthenticated users
@@ -450,7 +481,7 @@ If this is the user's first sign-in, AuthGate appends `&new_user=true` so your a
 https://app.example.com/dashboard?token=eyJhbG...&new_user=true
 ```
 
-The param is absent on subsequent logins. It's a UX signal — not cryptographically signed — so use it for things like "show the welcome banner", not for security-critical logic.
+The param is absent on subsequent logins. It is a UX signal — not cryptographically signed — so use it for things like "show the welcome banner", not for security-critical logic.
 
 AuthGate also sets an HttpOnly cookie (`authgate_token`) — useful when your app and AuthGate share a domain.
 
@@ -521,7 +552,7 @@ Use the public key to verify the JWT signature in your app without network calls
 Each user has an `is_active` boolean on the `users` table (default `true`). Set it to `false` to immediately:
 
 - Block future logins at the OAuth callback — the user is redirected to `/login?error=account_disabled`
-- Invalidate active sessions — `/api/verify` returns `{ "valid": false }` and `/api/userinfo` returns `401` for disabled users, even if their JWT hasn't expired
+- Invalidate active sessions — `/api/verify` returns `{ "valid": false }` and `/api/userinfo` returns `401` for disabled users, even if their JWT has not expired
 
 Toggle it directly in the database:
 
@@ -537,13 +568,13 @@ Use the admin panel (`make admin-up`, then open http://localhost:8001) to toggle
 
 ### Upgrading from pre-`is_active` versions
 
-AuthGate creates tables via `Base.metadata.create_all`, which doesn't `ALTER` existing tables. If you're upgrading an existing deployment, run once against your database:
+AuthGate creates tables via `Base.metadata.create_all`, which does not `ALTER` existing tables. If you are upgrading an existing deployment, run once against your database:
 
 ```sql
 ALTER TABLE users ADD COLUMN is_active BOOLEAN NOT NULL DEFAULT TRUE;
 ```
 
-The older `provider` and `provider_id` columns on `users` (deprecated and removed in this release) can stay — they're harmless. If you want a clean schema:
+The older `provider` and `provider_id` columns on `users` (deprecated and removed in this release) can stay — they are harmless. For a clean schema:
 
 ```sql
 ALTER TABLE users DROP COLUMN provider;
@@ -573,9 +604,7 @@ kubectl create secret generic authgate-secrets \
   --from-literal=GITHUB_CLIENT_SECRET="your-client-secret"
 ```
 
-> **Tip:** For a cleaner setup, use an `authgate.yaml` config file with `$VAR` references
-> mounted via ConfigMap + Secret. See [Configuration](#configuration) above
-> for a complete Kubernetes example with ConfigMap, Secret, and Deployment manifests.
+> **Tip:** For a cleaner setup, use an `authgate.yaml` config file with `$VAR` references mounted via ConfigMap + Secret. See [Configuration](#configuration) above for a complete example with ConfigMap, Secret, and Deployment manifests.
 
 **Step 2: Install the chart**
 
@@ -634,7 +663,7 @@ helm install authgate ./deployments/helm/authgate -f my-values.yaml
 
 ```mermaid
 graph TB
-    User["🌐 User Browser"]
+    User["User Browser"]
 
     subgraph Internet
         ALB["AWS ALB / Ingress Controller"]
@@ -764,4 +793,4 @@ authgate/
 
 ---
 
-© 2026 AuthGate
+*MIT License. See [LICENSE](LICENSE) for details.*
