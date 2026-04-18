@@ -2,7 +2,9 @@ name: E2E Tests
 
 on:
   push:
-    tags: ["v*"]
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
   test:
@@ -36,7 +38,7 @@ jobs:
             requirements-test.txt
 
       - name: Install dependencies
-        run: pip install -r requirements.txt -r requirements-test.txt
+        run: pip install -r requirements.txt -r requirements-test.txt -r admin/requirements.txt
 
       - name: Run E2E tests
         run: pytest tests/ -v
@@ -44,3 +46,4 @@ jobs:
           AUTHGATE_CONFIG: tests/authgate.test.yaml
           DATABASE_URL: postgresql+asyncpg://authgate:authgate@localhost:5432/authgate_test
           AUTHGATE_TEST: "1"
+          SECRET_KEY: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
