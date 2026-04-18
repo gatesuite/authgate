@@ -60,11 +60,10 @@ test-down: ## Stop and remove test containers and volumes
 # Postgres data and JWT keys are destroyed. Re-running app-up will
 # generate fresh keys and an empty DB.
 
-clean: ## Wipe everything — containers, volumes, caches, keys, lockfiles
+clean: ## Wipe everything — containers, volumes, caches, keys
 	docker compose -f $(APP_COMPOSE) down -v --remove-orphans 2>/dev/null || true
 	docker compose -f docker-compose.test.yml down -v --remove-orphans 2>/dev/null || true
 	cd docs && docker compose down -v --remove-orphans 2>/dev/null || true
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 	find . -type f -name "*.pyc" -delete 2>/dev/null || true
 	rm -rf keys/
-	rm -f docs/package-lock.json
