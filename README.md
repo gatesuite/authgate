@@ -18,6 +18,10 @@
 
 ---
 
+Welcome to the repository for [AuthGate](https://gatesuite.github.io/authgate/) — a lightweight, self-hosted OAuth login service you can drop in front of any app. This repo contains the source for the AuthGate service, an optional admin panel, a Helm chart for Kubernetes, and Docker Compose configs for local development. Please review the [Why AuthGate?](#why-authgate) section below for more details.
+
+---
+
 <p align="center">
   <img src="./docs/public/screenshots/login-light.png" alt="AuthGate Login — Light Mode" width="46%" />
   &nbsp;&nbsp;&nbsp;&nbsp;
